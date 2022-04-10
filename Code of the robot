@@ -1,0 +1,174 @@
+//Pantalla LCD
+#include <LiquidCrystal.h>
+const int RS=13,E=12,DB4=11,DB5=10,DB6=9,DB7=8;
+LiquidCrystal pantalla(RS,E,DB4,DB5,DB6,DB7);
+//Sensor Ultrasonico
+#define TRIG1 7
+#define ECHO1 6
+#define TRIG2 5
+#define ECHO2 4
+byte contento[8]=
+{
+  B00000,
+  B10001,
+  B00000,
+  B00000,
+  B10001,
+  B01110,
+  B00000,
+};
+long tiempo1,tiempo2;
+float distancia1,distancia2;
+//Boton
+int btn=0;
+//Sensor de temperatura
+float temp1,temp2,temp3,temp4,tempPromedio;
+float voltaje1,voltaje2,voltaje3,voltaje4;
+void setup()
+{
+  //Sensor Ultrasonico y sensor de temperatura
+  Serial.begin(9600);
+  pinMode(ECHO1,INPUT);
+  pinMode(TRIG1,OUTPUT);
+  pinMode(ECHO2,INPUT);
+  pinMode(TRIG2,OUTPUT);
+  //Pantalla LCD
+  pantalla.begin(16,2);
+  pantalla.clear();
+  //Luces LED
+  pinMode(A1,INPUT);
+  pinMode(A2,INPUT);
+  //Piezo
+  pinMode(A0,OUTPUT);
+  //Boton
+  pinMode(2,INPUT);
+}
+
+void loop()
+{
+  pantalla.clear();
+  //Leer el valor del boton
+  btn=digitalRead(2);
+  
+  if((btn==LOW))
+  {	
+    //Leer el voltaje del sensor de temperatura
+    voltaje1=analogRead(A3);
+    voltaje2=analogRead(A4);
+    voltaje3=analogRead(3);
+    voltaje4=analogRead(A5);
+    //Calculamos la temperatura con formula
+    temp1=((voltaje1*5/1024)-0.55)*100;
+    temp2=((voltaje2*5/1024)-0.55)*100;
+    temp3=((voltaje3*5/1024)-0.55)*100;
+    temp4=((voltaje4*5/1024)-0.55)*100;
+    //Promediamos la temperatura
+    tempPromedio=(3*temp1+2*temp2+2*temp3+temp4)/8;
+    pantalla.setCursor(0,0);
+    pantalla.print("PRENDIENDO");
+    pantalla.setCursor(0,1);
+    pantalla.print(tempPromedio);
+    //Esperamos 5 minutos(se pone 5 segundos para la practica)
+    delay(5000);
+
+  }
+  pantalla.clear();
+  while(btn==LOW)
+  { 
+    digitalWrite(A1,LOW); 
+  	digitalWrite(A2,LOW);
+    //Enviar las Ondas del primer sensor ultrasonico
+    digitalWrite(TRIG1,HIGH);
+    //Ultrasonicos cada 0.01 segundos
+    delayMicroseconds(10);
+    digitalWrite(TRIG1,LOW);
+    //Calcular el tiempo que se demora en 
+    //recibir las ondas del primer sensor ultrasonico
+    tiempo1=pulseIn(ECHO1,HIGH)/2;
+    //Enviar las Ondas del segundo sensor ultrasonico
+    digitalWrite(TRIG2,HIGH);
+    //Ultrasonicos cada 0.01 segundos
+    delayMicroseconds(10);
+    digitalWrite(TRIG2,LOW);
+    //Calcular el tiempo que se demora en 
+    //recibir las ondas del sengundo sensor ultrasonico
+    tiempo2=pulseIn(ECHO2,HIGH)/2;
+  	//Calcular la distancia, usando el tiempo 
+    //de recorrido de las ondas
+    distancia1= float(tiempo1*0.0343);
+    distancia2= float(tiempo2*0.0343);
+    //Leer el voltaje del sensor de temperatura
+    voltaje1=analogRead(A3);
+    voltaje2=analogRead(A4);
+    voltaje3=analogRead(3);
+    voltaje4=analogRead(A5);
+    //Calculamos la temperatura con formula
+    temp1=((voltaje1*5/1024)-0.55)*100;
+    temp2=((voltaje2*5/1024)-0.55)*100;
+    temp3=((voltaje3*5/1024)-0.55)*100;
+    temp4=((voltaje4*5/1024)-0.55)*100;
+    //Promediamos la temperatura
+    tempPromedio=(3*temp1+2*temp2+2*temp3+temp4)/8;
+    pantalla.setCursor(0,0);
+    pantalla.print(tempPromedio);
+	pantalla.clear();
+    //PREGUNTAMOS SI LA TEMPERATURA DEL BEBE ESTA BIEN
+    if(tempPromedio>=36.1 && tempPromedio<=37.7){
+      //Imprimir en la pantalla
+      pantalla.setCursor(0,1);
+      pantalla.print("T.Normal");
+      pantalla.setCursor(10,1);
+      pantalla.print(tempPromedio);
+      //imprime cara feliz
+      pantalla.createChar(0,contento);
+      pantalla.setCursor(15,1);
+  	  pantalla.write(byte(0));
+    }
+    else if(tempPromedio<=36.1)
+    {
+
+      //Imprimir en la pantalla
+      pantalla.clear();
+      pantalla.setCursor(0,1);
+      pantalla.print("Temperatura baja");
+      //Enceder el parlante por 10 segundos
+      tone(A0,987.77,10000);
+      //Encender la luz LED AZUL
+      digitalWrite(A2,HIGH);
+    }
+    else if(tempPromedio>=37.7)
+    {
+      //Imprimir en la pantalla
+      pantalla.setCursor(0,1);
+      pantalla.print("Temperatura alta");
+      //Enceder el parlante por 10 segundos
+      tone(A0,987.77,10000);
+      //Encender la luz LED AZUL
+      digitalWrite(A2,HIGH);
+    }
+    //PREGUNTAMOS SI EL BEBE NO SE HA MOVIDO
+    if(distancia1-distancia2>10.0 || distancia2-distancia1>10.0)
+    {
+      //Imprimir en la pantalla
+      pantalla.setCursor(0,0);
+      pantalla.print("Bebe se mueve");
+      //Enceder el parlante por 10 segundos
+      tone(A0,587.33,10000);
+      //Encender la luz LED ROJA
+      digitalWrite(A1,HIGH);
+      
+    }
+    else
+    {
+      pantalla.setCursor(0,0);
+      pantalla.print("Bebe quieto");
+      //imprime cara feliz
+      pantalla.createChar(0,contento);
+      pantalla.setCursor(15,0);
+  	  pantalla.write(byte(0));
+    }
+    delay(10000);//vuelve a calcular cada minuto   
+  }
+  delay(1000);
+  pantalla.clear();
+}
